@@ -1,88 +1,471 @@
 import SwiftUI
 
-struct callView: View {
-    // MARK: - Properties
-    private let months: [String] = [
-        "September 2025",
-        "October 2025",
-        "November 2025"
-    ]
-    
-    private let daysInMonth = [
-        30, 31, 30
-    ]
-    
-    // لتنسيق الأيام بالألوان
-    private let highlightedDays: [Int: [Int]] = [
-        0: [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
-        1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
-        2: [13, 14, 15]
-    ]
-    
-    private let blueDays = [13, 14, 20, 21, 22]
-    
-    // MARK: - View
+struct ContentView3: View {
+    @StateObject private var vm = LearningViewModel()
+    @State private var showCalendar = false
+    @State private var showGoal = false
+    @State private var showCompletionView = false // ✅ شاشة "Well done!"
+
+    private let headerFontSize: CGFloat = 32
+    private let capsuleHeight: CGFloat = 69
+    private let capsuleWidth: CGFloat = 160
+
+    @State var topic: String
+    @State var period: String // ✅ الآن تعتمد على المدة الفعلية (Week / Month / Year)
+
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            
-            VStack(alignment: .leading, spacing: 20) {
-                
-                // MARK: - Header
-                HStack {
-                    Button(action: {}) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                            .foregroundColor(.white)
+        NavigationStack {
+            ZStack {
+                // الخلفية
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black,
+                        Color(red: 0.05, green: 0.03, blue: 0.02)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: 25) {
+                    headerView
+                    mainCardView
+
+                    // ✅ إذا اكتمل الهدف نعرض شاشة Well done بدل الدائرة
+                    if showCompletionView {
+                        completionView
+                    } else {
+                        learnedTodayView
                     }
-                    Text("All activities")
-                        .font(.title2)
-                        .bold()
-                        .foregroundColor(.white)
+
                     Spacer()
                 }
-                .padding(.horizontal)
-                
-                // MARK: - Calendar
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 32) {
-                        ForEach(months.indices, id: \.self) { index in
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(months[index])
-                                    .foregroundColor(.white)
-                                    .font(.headline)
-                                    .padding(.horizontal)
-                                
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 7), spacing: 10) {
-                                    ForEach(1...daysInMonth[index], id: \.self) { day in
-                                        Circle()
-                                            .fill(
-                                                blueDays.contains(day)
-                                                ? Color.blue
-                                                : highlightedDays[index]?.contains(day) ?? false
-                                                    ? Color(red: 0.4, green: 0.25, blue: 0.1)
-                                                    : Color.clear
-                                            )
-                                            .frame(width: 36, height: 36)
-                                            .overlay(
-                                                Text("\(day)")
-                                                    .foregroundColor(.white)
-                                                    .font(.system(size: 14, weight: .semibold))
-                                            )
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
-                        }
+            }
+            .onAppear {
+                vm.moveToCurrentWeek()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    vm.currentDate = Date()
+                }
+
+                // ✅ إعادة ضبط البداية عند الظهور
+                showCompletionView = false
+                checkGoalCompletion()
+            }
+            // ✅ الشاشات الثانوية
+            .fullScreenCover(isPresented: $showCalendar) {
+                CalendarView(vm: vm)
+                    .preferredColorScheme(.dark)
+            }
+            .fullScreenCover(isPresented: $showGoal) {
+                Goul(topic: $topic, period: $period)
+                    .preferredColorScheme(.dark)
+            }
+            // ✅ التحقق من اكتمال الهدف عند تحديث الأيام
+            .onChange(of: vm.learning.daysLearned) { _ in
+                checkGoalCompletion()
+            }
+        }
+    }
+
+    // MARK: - التحقق من انتهاء المدة
+    private func checkGoalCompletion() {
+        let targetDays: Int
+        switch period.lowercased() {
+        case "week":
+            targetDays = 7
+        case "month":
+            targetDays = 30
+        case "year":
+            targetDays = 365
+        default:
+            targetDays = 7
+        }
+
+        if vm.learning.daysLearned >= targetDays {
+            withAnimation(.easeInOut(duration: 0.4)) {
+                showCompletionView = true
+            }
+        }
+    }
+
+    // MARK: - شاشة "Well done!"
+    private var completionView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+
+            Image(systemName: "hands.clap.fill")
+                .font(.system(size: 40))
+                .foregroundColor(Color(hex: "#FF9230"))
+                .shadow(color: .orange.opacity(0.4), radius: 10, y: 5)
+                .padding(.bottom, 4)
+
+            Text("Well done!")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(.white)
+
+            Text("Goal completed! Start learning again or\nset new learning goal.")
+                .font(.system(size: 18))
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 30)
+                .padding(.top, -2)
+
+            // 🔸 الأزرار نازلة لتحت شوي
+            Spacer(minLength: 60)
+
+            Button {
+                withAnimation {
+                    showGoal = true
+                }
+            } label: {
+                Text("Set new learning goal")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 250, height: 48)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color(hex: "#AF4402"))
+                    )
+            }
+            .shadow(color: .orange.opacity(0.4), radius: 8, y: 4)
+
+            Button {
+                withAnimation {
+                    vm.learning.daysLearned = 0
+                    showCompletionView = false
+                }
+            } label: {
+                Text("Set same learning goal and duration")
+                    .font(.system(size: 15))
+                    .foregroundColor(Color(hex: "#FF9230"))
+            }
+            .padding(.top, 6)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 40)
+        .transition(.opacity.combined(with: .scale))
+    }
+
+    // MARK: - Header
+    private var headerView: some View {
+        HStack {
+            Text("Activity")
+                .font(.system(size: headerFontSize, weight: .bold))
+                .foregroundColor(.white)
+
+            Spacer()
+
+            HStack(spacing: 16) {
+                glassEffectButton(icon: "calendar") {
+                    withAnimation(.easeInOut) { showCalendar = true }
+                }
+
+                glassEffectButton(icon: "pencil.and.outline") {
+                    withAnimation(.easeInOut) { showGoal = true }
+                }
+            }
+        }
+        .padding(.horizontal, 25)
+        .padding(.top, 20)
+    }
+
+    // MARK: - زر زجاجي
+    private func glassEffectButton(icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.15),
+                                Color.white.opacity(0.05)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.4),
+                                        Color.white.opacity(0.05)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.2
+                            )
+                    )
+
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .frame(width: 46, height: 46)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - البطاقة الرئيسية
+    private var mainCardView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // عنوان الشهر والأسبوع
+            HStack {
+                Button(action: { withAnimation { vm.showMonthPicker.toggle() } }) {
+                    HStack(spacing: 6) {
+                        Text(vm.currentMonthYear)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+
+                        Image(systemName: "chevron.forward")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color(hex: "#FF9230"))
+                            .rotationEffect(.degrees(vm.showMonthPicker ? 90 : 0))
+                            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: vm.showMonthPicker)
+                    }
+                }
+
+                Spacer()
+
+                HStack(spacing: 20) {
+                    Button(action: { vm.changeWeek(by: -1) }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color(hex: "#FF9230"))
+                    }
+
+                    Button(action: { vm.changeWeek(by: 1) }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(Color(hex: "#FF9230"))
                     }
                 }
             }
-            .padding(.top, 16)
+
+            if vm.showMonthPicker {
+                monthYearPicker
+            } else {
+                weekView
+            }
+
+            Divider().background(Color.gray.opacity(0.3))
+
+            Text("Learning \(topic)")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.top, 6)
+
+            HStack(spacing: 18) {
+                capsuleView(
+                    bgColor: Color(hex: "#4A3422"),
+                    icon: "flame.fill",
+                    iconColor: Color(hex: "#FF9230"),
+                    value: vm.learning.daysLearned,
+                    label: (vm.learning.daysLearned <= 1) ? "Day Learned" : "Days Learned"
+                )
+
+                capsuleView(
+                    bgColor: Color(hex: "#243C46"),
+                    icon: "cube.fill",
+                    iconColor: Color(hex: "#77C9D4"),
+                    value: vm.learning.daysFreezed,
+                    label: (vm.learning.daysFreezed <= 1) ? "Day Freezed" : "Days Freezed"
+                )
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color(hex: "#121212"))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 25)
+    }
+
+    // MARK: - عرض الأسبوع الحالي
+    private var weekView: some View {
+        HStack(spacing: 14) {
+            ForEach(vm.currentWeek, id: \.self) { day in
+                VStack(spacing: 6) {
+                    Text(vm.weekday(for: day))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.gray)
+
+                    Text("\(Calendar.current.component(.day, from: day))")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(vm.weekDayTextColor(for: day))
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(vm.weekDayBackgroundColor(for: day)))
+                }
+            }
+        }
+    }
+
+    // MARK: - Month + Year Picker ✅ مضافة لتصحيح الخطأ
+    private var monthYearPicker: some View {
+        HStack(spacing: 0) {
+            Picker("Month", selection: $vm.selectedMonth) {
+                ForEach(1...12, id: \.self) { month in
+                    Text(vm.monthName(for: month))
+                        .foregroundColor(.white)
+                        .tag(month)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .pickerStyle(.wheel)
+            .clipped()
+
+            Picker("Year", selection: $vm.selectedYear) {
+                ForEach(2020...2030, id: \.self) { year in
+                    Text(String(year))
+                        .foregroundColor(.white)
+                        .tag(year)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .pickerStyle(.wheel)
+            .clipped()
+        }
+        .frame(height: 160)
+        .background(Color.black.opacity(0.001))
+        .cornerRadius(16)
+        .padding(.horizontal, 10)
+    }
+
+    // MARK: - كبسولات الإحصائيات
+    private func capsuleView(bgColor: Color, icon: String, iconColor: Color, value: Int, label: String) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 30)
+                .fill(bgColor)
+                .frame(width: capsuleWidth, height: capsuleHeight)
+
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(iconColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(value)")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                    Text(label)
+                        .font(.system(size: 13))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    // MARK: - دائرة Log as Learned بالوسط
+    private var learnedTodayView: some View {
+        VStack(spacing: 25) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(circleFillStyle)
+                    .overlay(Circle().strokeBorder(circleStrokeStyle, lineWidth: 2))
+                    .frame(width: 274, height: 274)
+
+                VStack(spacing: 5) {
+                    switch vm.currentState {
+                    case .logAsLearned: Text("Log as"); Text("Learned")
+                    case .learnedToday: Text("Learned"); Text("Today")
+                    case .dayFreezed: Text("Day"); Text("Freezed")
+                    }
+                }
+                .font(.system(size: 37, weight: .bold))
+                .foregroundColor(circleTextColor)
+            }
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    if vm.currentState == .logAsLearned {
+                        vm.currentState = .learnedToday
+                        vm.markTodayAsLearned()
+                    }
+                }
+            }
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    vm.currentState = .dayFreezed
+                    vm.markTodayAsFreezed()
+                }
+            } label: {
+                Text("Log as Freezed")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 250, height: 48)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(vm.freezeButtonColor)
+                    )
+            }
+            .disabled(!vm.isFreezeButtonEnabled)
+
+            Text("\(vm.learning.daysFreezed) out of \(vm.learning.totalFreezes) \((vm.learning.daysFreezed <= 1) ? "Freeze used" : "Freezes used")")
+                .font(.system(size: 14))
+                .foregroundColor(.gray.opacity(0.8))
+                .multilineTextAlignment(.center)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal)
+    }
+
+    // MARK: - خصائص الدائرة
+    private var circleFillStyle: AnyShapeStyle {
+        switch vm.currentState {
+        case .logAsLearned:
+            return AnyShapeStyle(LinearGradient(
+                gradient: Gradient(colors: [Color(hex: "#B24500"), Color(hex: "#FF9230").opacity(0.4)]),
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ))
+        case .learnedToday:
+            return AnyShapeStyle(LinearGradient(
+                gradient: Gradient(colors: [Color(hex: "#150000"), Color(hex: "#4C311A").opacity(0.4)]),
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ))
+        case .dayFreezed:
+            return AnyShapeStyle(Color(hex: "#00060C"))
+        }
+    }
+
+    private var circleStrokeStyle: AnyShapeStyle {
+        switch vm.currentState {
+        case .logAsLearned:
+            return AnyShapeStyle(LinearGradient(
+                gradient: Gradient(colors: [Color(hex: "#FF9230").opacity(0.6), Color.clear]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+        case .learnedToday:
+            return AnyShapeStyle(LinearGradient(
+                gradient: Gradient(colors: [Color(hex: "#4C311A"), Color.clear]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+        case .dayFreezed:
+            return AnyShapeStyle(Color(hex: "#00D2E0"))
+        }
+    }
+
+    private var circleTextColor: Color {
+        switch vm.currentState {
+        case .logAsLearned: return .white
+        case .learnedToday: return Color(hex: "#FF9230")
+        case .dayFreezed: return Color(hex: "#00D2E0")
         }
     }
 }
 
 #Preview {
-    callView()
+    ContentView3(topic: "Swift", period: "Week")
 }
-
