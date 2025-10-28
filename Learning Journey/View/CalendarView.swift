@@ -3,18 +3,23 @@ import SwiftUI
 struct CalendarView: View {
     @ObservedObject var vm: LearningViewModel
     @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme // ✅ تحديد ثيم النظام
 
     // MARK: - Colors
-    private let emptyColor = Color(hex: "#1E1E1E")
+    private let darkEmptyColor = Color(hex: "#1E1E1E")
+    private let lightEmptyColor = Color(hex: "#E6E6E6")
 
     @State private var months: [Date] = []
     @State private var scrollToDate: Date = Date()
 
     var body: some View {
         ZStack {
-            // خلفية الصفحة
+            // ✅ خلفية ديناميكية حسب النظام
             LinearGradient(
-                colors: [Color.black, Color(red: 0.07, green: 0.04, blue: 0.02)],
+                colors: [
+                    Color(.systemBackground),
+                    Color(.secondarySystemBackground)
+                ],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -28,7 +33,7 @@ struct CalendarView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 // اسم الشهر والسنة
                                 Text(getMonthYearString(from: monthStart))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(colorScheme == .dark ? .white : .black)
                                     .font(.system(size: 18, weight: .semibold))
                                     .padding(.leading, 20)
                                     .id(monthStart)
@@ -37,7 +42,7 @@ struct CalendarView: View {
                                 HStack {
                                     ForEach(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], id: \.self) { day in
                                         Text(day)
-                                            .foregroundColor(.white.opacity(0.6))
+                                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
                                             .font(.system(size: 14))
                                             .frame(maxWidth: .infinity)
                                     }
@@ -62,7 +67,7 @@ struct CalendarView: View {
                                         let calendar = Calendar.current
                                         let isToday = calendar.isDateInToday(date)
 
-                                        // ✅ تحديد اللون حسب الحالة الحالية أو المسجلة
+                                        // ✅ تحديد اللون حسب الحالة
                                         let (dayColor, textColor): (Color, Color) = {
                                             if isToday {
                                                 switch vm.currentState {
@@ -80,10 +85,12 @@ struct CalendarView: View {
                                                 case .dayFreezed:
                                                     return (Color(hex: "#1D414B"), Color(hex: "#3CD3FE"))
                                                 default:
-                                                    return (emptyColor, .white)
+                                                    return (colorScheme == .dark ? darkEmptyColor : lightEmptyColor,
+                                                            colorScheme == .dark ? .white : .black)
                                                 }
                                             } else {
-                                                return (emptyColor, .white)
+                                                return (colorScheme == .dark ? darkEmptyColor : lightEmptyColor,
+                                                        colorScheme == .dark ? .white : .black)
                                             }
                                         }()
 
@@ -103,7 +110,7 @@ struct CalendarView: View {
                                 .padding(.horizontal, 16)
 
                                 Divider()
-                                    .background(Color.white.opacity(0.1))
+                                    .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
                                     .padding(.top, 8)
                             }
                         }
@@ -121,10 +128,9 @@ struct CalendarView: View {
                 }
             }
 
-            // MARK: - Header (زر الرجوع الزجاجي)
+            // MARK: - Header
             VStack {
                 HStack {
-                    // زر الرجوع
                     Button(action: { dismiss() }) {
                         ZStack {
                             Circle()
@@ -137,11 +143,6 @@ struct CalendarView: View {
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
-                                )
-                                .background(
-                                    Circle()
-                                        .fill(Color.white.opacity(0.08))
-                                        .blur(radius: 2)
                                 )
                                 .overlay(
                                     Circle()
@@ -157,11 +158,8 @@ struct CalendarView: View {
                                             lineWidth: 1.2
                                         )
                                 )
-                                .shadow(color: Color.white.opacity(0.05), radius: 2, x: 1, y: 1)
-                                .shadow(color: Color.black.opacity(0.6), radius: 3, x: 1, y: 2)
-
                             Image(systemName: "chevron.left")
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .font(.system(size: 18, weight: .semibold))
                         }
                         .frame(width: 42, height: 42)
@@ -170,9 +168,9 @@ struct CalendarView: View {
                     Spacer()
 
                     Text("All activities")
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .font(.system(size: 20, weight: .semibold))
-                        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                        .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .gray.opacity(0.2), radius: 2, y: 1)
 
                     Spacer()
                     Spacer().frame(width: 42)
@@ -185,7 +183,6 @@ struct CalendarView: View {
             }
             .zIndex(1)
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Calendar Helpers

@@ -10,6 +10,8 @@ struct Goul: View {
     @Binding var topic: String
     @Binding var period: String
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.colorScheme) private var colorScheme // ✅ لمعرفة الثيم الحالي
+
     @State private var showAlert = false
     @State private var goalText: String
     @State private var selectedDuration: Duration
@@ -26,8 +28,11 @@ struct Goul: View {
 
     var body: some View {
         ZStack {
+            // ✅ الخلفية حسب الثيم
             LinearGradient(
-                colors: [Color.black.opacity(0.7), Color(hex: "#1A0E06")],
+                colors: colorScheme == .dark
+                    ? [Color.black.opacity(0.7), Color(hex: "#1A0E06")]
+                    : [Color.white, Color(red: 0.97, green: 0.96, blue: 0.95)], // ✅ تم تصحيح Color.white
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -43,12 +48,11 @@ struct Goul: View {
                     Spacer()
 
                     Text("Learning Goal")
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .font(.system(size: 20, weight: .semibold))
 
                     Spacer()
 
-                    // زر الصح بنفس اللون الجديد + تأثير الزجاج
                     glassOrangeButton(icon: "checkmark") {
                         withAnimation(.spring()) {
                             showAlert = true
@@ -63,24 +67,24 @@ struct Goul: View {
                 // MARK: - المحتوى الرئيسي
                 VStack(alignment: .leading, spacing: 18) {
                     Text("I want to learn")
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .font(.system(size: 18, weight: .semibold))
 
                     ZStack(alignment: .leading) {
                         Rectangle()
                             .frame(height: 1)
-                            .foregroundColor(Color.white.opacity(0.25))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25))
+
                             .offset(y: 18)
 
-                        TextEditorWrapper(text: $goalText)
+                        TextEditorWrapper(text: $goalText, textColor: colorScheme == .dark ? .white : .black)
                             .frame(height: 36)
                             .background(Color.clear)
-                            .foregroundColor(.white)
                             .font(.system(size: 18))
                     }
 
                     Text("I want to learn it in a")
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .font(.system(size: 16, weight: .regular))
                         .padding(.top, 8)
 
@@ -94,7 +98,11 @@ struct Goul: View {
                             }) {
                                 Text(d.rawValue)
                                     .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(selectedDuration == d ? .white : .white.opacity(0.9))
+                                    .foregroundColor(
+                                        selectedDuration == d
+                                            ? .white
+                                            : (colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                                    )
                                     .padding(.vertical, 10)
                                     .padding(.horizontal, 26)
                                     .background(
@@ -108,25 +116,26 @@ struct Goul: View {
                                                     .fill(
                                                         LinearGradient(
                                                             gradient: Gradient(colors: [
-                                                                Color.white.opacity(0.15),
-                                                                Color.white.opacity(0.05)
+                                                                colorScheme == .dark
+                                                                    ? Color.white.opacity(0.15)
+                                                                    : Color.black.opacity(0.08),
+                                                                colorScheme == .dark
+                                                                    ? Color.white.opacity(0.05)
+                                                                    : Color.black.opacity(0.03)
                                                             ]),
                                                             startPoint: .topLeading,
                                                             endPoint: .bottomTrailing
                                                         )
-                                                    )
-                                                    .background(
-                                                        Capsule()
-                                                            .fill(Color.white.opacity(0.08))
-                                                            .blur(radius: 2)
                                                     )
                                                     .overlay(
                                                         Capsule()
                                                             .stroke(
                                                                 LinearGradient(
                                                                     colors: [
-                                                                        Color.white.opacity(0.35),
-                                                                        Color.white.opacity(0.05)
+                                                                        colorScheme == .dark
+                                                                            ? Color.white.opacity(0.35)
+                                                                            : Color.black.opacity(0.2),
+                                                                        Color.clear
                                                                     ],
                                                                     startPoint: .topLeading,
                                                                     endPoint: .bottomTrailing
@@ -134,7 +143,7 @@ struct Goul: View {
                                                                 lineWidth: 1.1
                                                             )
                                                     )
-                                                    .shadow(color: Color.black.opacity(0.5), radius: 2, x: 1, y: 2)
+                                                    .shadow(color: Color.black.opacity(0.15), radius: 2, x: 1, y: 2)
                                             }
                                         }
                                     )
@@ -151,7 +160,7 @@ struct Goul: View {
 
             // MARK: - ALERT
             if showAlert {
-                Color.black.opacity(0.45)
+                (colorScheme == .dark ? Color.black.opacity(0.45) : Color.white.opacity(0.4))
                     .ignoresSafeArea()
                     .transition(.opacity)
                     .onTapGesture {
@@ -161,11 +170,11 @@ struct Goul: View {
                 VStack(spacing: 16) {
                     Text("Update Learning goal")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
 
                     Text("If you update now, your streak will start over.")
                         .font(.system(size: 15))
-                        .foregroundColor(.white)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
 
@@ -175,10 +184,14 @@ struct Goul: View {
                         }) {
                             Text("Dismiss")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(Color.gray.opacity(0.35))
+                                .background(
+                                    colorScheme == .dark
+                                        ? Color.gray.opacity(0.35)
+                                        : Color.black.opacity(0.1)
+                                )
                                 .cornerRadius(14)
                         }
 
@@ -197,6 +210,7 @@ struct Goul: View {
                                 .padding(.vertical, 12)
                                 .background(orangeMain)
                                 .cornerRadius(14)
+                                .shadow(color: orangeMain.opacity(0.3), radius: 4, y: 2)
                         }
                     }
                 }
@@ -204,11 +218,10 @@ struct Goul: View {
                 .background(.ultraThinMaterial)
                 .cornerRadius(20)
                 .padding(.horizontal, 40)
-                .shadow(color: Color.black.opacity(0.6), radius: 10, x: 0, y: 6)
+                .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 6)
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - زر الرجوع الزجاجي
@@ -219,25 +232,26 @@ struct Goul: View {
                     .fill(
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                Color.white.opacity(0.15),
-                                Color.white.opacity(0.05)
+                                colorScheme == .dark
+                                    ? Color.white.opacity(0.15)
+                                    : Color.black.opacity(0.1),
+                                colorScheme == .dark
+                                    ? Color.white.opacity(0.05)
+                                    : Color.black.opacity(0.05)
                             ]),
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
-                    )
-                    .background(
-                        Circle()
-                            .fill(Color.white.opacity(0.08))
-                            .blur(radius: 2)
                     )
                     .overlay(
                         Circle()
                             .stroke(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(0.4),
-                                        Color.white.opacity(0.05)
+                                        colorScheme == .dark
+                                            ? Color.white.opacity(0.3)
+                                            : Color.black.opacity(0.3),
+                                        Color.clear
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -245,28 +259,21 @@ struct Goul: View {
                                 lineWidth: 1.2
                             )
                     )
-                    .shadow(color: Color.white.opacity(0.05), radius: 2, x: 1, y: 1)
-                    .shadow(color: Color.black.opacity(0.6), radius: 3, x: 1, y: 2)
 
                 Image(systemName: icon)
-                    .foregroundColor(.white)
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .font(.system(size: 18, weight: .semibold))
             }
             .frame(width: 44, height: 44)
         }
     }
 
-    // MARK: - زر الصح بلون AF4402 + زجاج خفيف
+    // MARK: - زر الصح (AF4402)
     private func glassOrangeButton(icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             ZStack {
                 Circle()
                     .fill(orangeMain)
-                    .overlay(
-                        Circle()
-                            .fill(Color.white.opacity(0.08))
-                            .blur(radius: 2)
-                    )
                     .overlay(
                         Circle()
                             .stroke(
@@ -281,7 +288,6 @@ struct Goul: View {
                                 lineWidth: 1.2
                             )
                     )
-                    .shadow(color: orangeMain.opacity(0.5), radius: 6, x: 0, y: 3)
 
                 Image(systemName: icon)
                     .foregroundColor(.white)
@@ -292,14 +298,15 @@ struct Goul: View {
     }
 }
 
-// MARK: - TextEditor single-line wrapper
+// MARK: - TextEditor single-line wrapper (يدعم الثيم)
 struct TextEditorWrapper: UIViewRepresentable {
     @Binding var text: String
+    var textColor: Color
 
     func makeUIView(context: Context) -> UITextView {
         let tv = UITextView()
         tv.backgroundColor = .clear
-        tv.textColor = .white
+        tv.textColor = UIColor(textColor)
         tv.font = UIFont.systemFont(ofSize: 18, weight: .regular)
         tv.isScrollEnabled = false
         tv.text = text
@@ -309,7 +316,7 @@ struct TextEditorWrapper: UIViewRepresentable {
         tv.delegate = context.coordinator
         tv.textContainerInset = .zero
         tv.textContainer.lineFragmentPadding = 0
-        tv.tintColor = UIColor.white
+        tv.tintColor = UIColor(textColor)
         return tv
     }
 
@@ -317,6 +324,7 @@ struct TextEditorWrapper: UIViewRepresentable {
         if uiView.text != text {
             uiView.text = text
         }
+        uiView.textColor = UIColor(textColor)
     }
 
     func makeCoordinator() -> Coordinator {
