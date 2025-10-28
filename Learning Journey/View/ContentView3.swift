@@ -40,13 +40,22 @@ struct ContentView3: View {
                     .frame(maxWidth: screenWidth * 0.95)
                 }
             }
+            // ✅ التعديل هنا فقط
             .onAppear {
+                // تحديث الأسبوع الحالي
                 vm.moveToCurrentWeek()
+
+                // تأخير بسيط لتحديث التاريخ
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     vm.currentDate = Date()
                 }
+
+                // إعادة فحص الهدف
                 showCompletionView = false
                 checkGoalCompletion()
+
+                // ✅ فحص مرور 32 ساعة على آخر تسجيل
+                vm.checkStreakReset()
             }
             .fullScreenCover(isPresented: $showCalendar) { CalendarView(vm: vm) }
             .fullScreenCover(isPresented: $showGoal) { Goul(topic: $topic, period: $period) }

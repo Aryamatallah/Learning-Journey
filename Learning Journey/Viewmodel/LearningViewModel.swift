@@ -8,12 +8,11 @@ final class LearningViewModel: ObservableObject {
     @Published var showMonthPicker = false
     @Published var selectedMonth = Calendar.current.component(.month, from: Date())
     @Published var selectedYear = Calendar.current.component(.year, from: Date())
-
     @Published var learning: LearningModel
     @Published var currentState: LearningState = .logAsLearned
     @Published var lastLogDate: Date? = nil
+    @Published var period: String = "Week"
 
-    // MARK: - Combine cancellables
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Formatter
@@ -25,7 +24,8 @@ final class LearningViewModel: ObservableObject {
 
     // MARK: - Init
     init(topic: String = "Swift", period: String = "Week") {
-        var totalFreezes = 2 // الافتراضي للأسبوع
+        self.period = period
+        var totalFreezes = 2
 
         switch period.lowercased() {
         case "month":
@@ -36,9 +36,14 @@ final class LearningViewModel: ObservableObject {
             totalFreezes = 2
         }
 
-        self.learning = LearningModel(topic: topic, daysLearned: 0, daysFreezed: 0, totalFreezes: totalFreezes)
+        self.learning = LearningModel(
+            topic: topic,
+            daysLearned: 0,
+            daysFreezed: 0,
+            totalFreezes: totalFreezes
+        )
 
-        // ✅ تحديث الشهر والسنة تلقائيًا عند التغيير
+        // ✅ تحديث الشهر والسنة تلقائيًا
         $selectedMonth.combineLatest($selectedYear)
             .sink { [weak self] (month, year) in
                 guard let self = self else { return }
@@ -51,6 +56,9 @@ final class LearningViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // ⏰ إعادة تفعيل الأزرار في منتصف الليل
+        scheduleButtonResetAtMidnight()
     }
 
     // MARK: - Month + Year text
@@ -130,16 +138,25 @@ final class LearningViewModel: ObservableObject {
 
     // MARK: - Freeze Button Logic
     var isFreezeButtonEnabled: Bool {
-        guard learning.daysFreezed < learning.totalFreezes else { return false }
+        let usedAllFreezes = learning.daysFreezed >= learning.totalFreezes
         let todayKey = dayFormatter.string(from: Date())
-        return learning.loggedDays[todayKey] == nil
+        let alreadyLoggedToday = learning.loggedDays[todayKey] != nil
+        return !usedAllFreezes && !alreadyLoggedToday
     }
 
+    var isLearnButtonEnabled: Bool {
+        let todayKey = dayFormatter.string(from: Date())
+        let alreadyLoggedToday = learning.loggedDays[todayKey] != nil
+        return !alreadyLoggedToday
+    }
+
+    // ✅ تم التعديل هنا
     var freezeButtonColor: Color {
+        // لو خلصت الفريزات فقط → غامق
         if learning.daysFreezed >= learning.totalFreezes {
-            return Color(hex: "#091D1D") // انتهت الفريزات
+            return Color(hex: "#091D1D")
         } else {
-            return Color(hex: "#008593") // اللون الأساسي
+            return Color(hex: "#008593") // الأزرق العادي
         }
     }
 
@@ -151,6 +168,7 @@ final class LearningViewModel: ObservableObject {
         learning.daysLearned += 1
         currentState = .learnedToday
         lastLogDate = Date()
+        learning.lastLoggedDate = Date()
     }
 
     func markTodayAsFreezed() {
@@ -160,6 +178,7 @@ final class LearningViewModel: ObservableObject {
         learning.daysFreezed += 1
         currentState = .dayFreezed
         lastLogDate = Date()
+        learning.lastLoggedDate = Date()
     }
 
     func resetDailyStateIfNeeded() {
@@ -167,5 +186,41 @@ final class LearningViewModel: ObservableObject {
         if let lastLogDate = lastLogDate, !calendar.isDateInToday(lastLogDate) {
             currentState = .logAsLearned
         }
+    }
+
+    // MARK: - Streak Logic
+    func checkStreakReset() {
+        guard let last = learning.lastLoggedDate else { return }
+        let hoursPassed = Date().timeIntervalSince(last) / 3600
+        if hoursPassed > 32 {
+            resetStreak()
+        }
+    }
+
+    func resetStreak() {
+        learning.daysLearned = 0
+        learning.daysFreezed = 0
+        learning.loggedDays.removeAll()
+        currentState = .logAsLearned
+    }
+
+    // MARK: - Midnight Reset
+    func scheduleButtonResetAtMidnight() {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let nextMidnight = calendar.nextDate(after: now, matching: DateComponents(hour: 0), matchingPolicy: .nextTime) else { return }
+        let interval = nextMidnight.timeIntervalSinceNow
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
+            self.learning.lastLoggedDate = nil
+            self.currentState = .logAsLearned
+            self.objectWillChange.send()
+            self.scheduleButtonResetAtMidnight() // يعيد جدولة نفسه كل يوم
+        }
+    }
+
+    // MARK: - Text Handling
+    func pluralizedWord(for value: Int, singular: String, plural: String) -> String {
+        return value == 1 ? singular : plural
     }
 }
